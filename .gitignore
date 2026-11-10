@@ -1,0 +1,11 @@
+# Android / Gradle generated files
+**/.gradle/
+**/build/
+**/local.properties
+**/captures/
+**/app/release/
+**/app/debug/
+
+# OS/editor files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AppStich APK Builder</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --panel-alt: #1f2937;
+        --border: #334155;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --primary: #3b82f6;
+        --primary-hover: #2563eb;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --error: #ef4444;
+        --shadow: rgba(15, 23, 42, 0.3);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #020817, #111827 45%, #0f172a 100%);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .app-shell {
+        width: min(960px, calc(100vw - 32px));
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 20px;
+        box-shadow: 0 24px 56px var(--shadow);
+        overflow: hidden;
+      }
+
+      .header {
+        padding: 24px 28px 18px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3rem);
+      }
+
+      .header p {
+        margin: 10px 0 0;
+        color: var(--muted);
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+      }
+
+      .panel {
+        padding: 28px;
+      }
+
+      .panel + .panel {
+        border-left: 1px solid rgba(148, 163, 184, 0.16);
+      }
+
+      label {
+        display: block;
+        margin: 20px 0 8px;
+        font-weight: 700;
+      }
+
+      input,
+      button {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        font-size: 1rem;
+      }
+
+      input {
+        background: rgba(15, 23, 42, 0.7);
+        color: var(--text);
+      }
+
+      input:focus {
+        outline: 2px solid rgba(59, 130, 246, 0.7);
+        border-color: var(--primary);
+      }
+
+      .repo-row {
+        display: grid;
+        grid-template-columns: minmax(120px, 1fr) 18px minmax(120px, 1fr);
+        align-items: center;
+        gap: 8px;
+      }
+
+      .repo-row span {
+        text-align: center;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .dropzone {
+        margin-top: 8px;
+        border: 1.5px dashed rgba(148, 163, 184, 0.8);
+        border-radius: 14px;
+        background: rgba(17, 24, 39, 0.8);
+        min-height: 140px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      }
+
+      .dropzone.dragover {
+        border-color: var(--primary);
+        background: rgba(59, 130, 246, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .dropzone strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .dropzone small {
+        color: var(--muted);
+      }
+
+      .file-meta {
+        margin-top: 10px;
+        font-size: 0.92rem;
+        color: var(--muted);
+        min-height: 1.2em;
+      }
+
+      button {
+        margin-top: 20px;
+        background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+        border: none;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.15s ease, filter 0.2s ease;
+      }
+
+      button:hover {
+        filter: brightness(1.05);
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+
+      .tips {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        color: var(--muted);
+      }
+
+      .tips strong {
+        color: var(--text);
+      }
+
+      .status {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: var(--text);
+        min-height: 48px;
+      }
+
+      .status.error {
+        border-color: rgba(239, 68, 68, 0.5);
+        background: rgba(127, 29, 29, 0.18);
+        color: #fecaca;
+      }
+
+      .status.success {
+        border-color: rgba(34, 197, 94, 0.5);
+        background: rgba(20, 83, 45, 0.18);
+        color: #bbf7d0;
+      }
+
+      .result {
+        margin-top: 18px;
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .result h3 {
+        margin-top: 0;
+      }
+
+      .result a {
+        color: #93c5fd;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 760px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .panel + .panel {
+          border-left: none;
+          border-top: 1px solid rgba(148, 163, 184, 0.16);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="header">
+        <h1>AppStich</h1>
+        <p>Upload a static web project, trigger a GitHub Actions APK build, and download the generated Android app.</p>
+      </header>
+
+      <div class="content">
+        <section class="panel">
+          <form id="build-form">
+            <label for="token">GitHub Personal Access Token</label>
+            <input id="token" type="password" placeholder="ghp_xxxxxxxxxxxxx" required />
+
+            <label for="owner">Repository</label>
+            <div class="repo-row">
+              <input id="owner" type="text" placeholder="owner" required />
+              <span>/</span>
+              <input id="repo" type="text" placeholder="repo" required />
+            </div>
+
+            <label for="branch">Branch</label>
+            <input id="branch" type="text" value="main" />
+
+            <label for="archive">Web project ZIP</label>
+            <input id="archive" type="file" accept=".zip,application/zip" hidden />
+            <div id="dropzone" class="dropzone" tabindex="0" aria-label="Select a zip file">
+              <div>
+                <strong>Drop your web project zip here</strong>
+                <small>or click to choose a file</small>
+              </div>
+            </div>
+            <div id="fileMeta" class="file-meta"></div>
+
+            <button id="submitButton" type="submit">Trigger APK Build</button>
+          </form>
+
+          <div id="status" class="status" role="status" aria-live="polite">Ready for a build.</div>
+        </section>
+
+        <aside class="panel">
+          <h2>How it works</h2>
+          <div class="tips">
+            <strong>Zip requirements:</strong> the archive must include an <code>index.html</code> file at the project root or in a nested folder. The builder will place the extracted files into the Android WebView template before compilation.
+          </div>
+
+          <div id="runDetails" class="result hidden"></div>
+        </aside>
+      </div>
+    </main>
+
+    <script>
+      const form = document.getElementById('build-form');
+      const tokenInput = document.getElementById('token');
+      const ownerInput = document.getElementById('owner');
+      const repoInput = document.getElementById('repo');
+      const branchInput = document.getElementById('branch');
+      const archiveInput = document.getElementById('archive');
+      const dropzone = document.getElementById('dropzone');
+      const fileMeta = document.getElementById('fileMeta');
+      const statusEl = document.getElementById('status');
+      const runDetails = document.getElementById('runDetails');
+
+      let selectedFile = null;
+
+      function setStatus(message, kind = 'info') {
+        statusEl.textContent = message;
+        statusEl.className = 'status';
+        if (kind === 'error') statusEl.classList.add('error');
+        if (kind === 'success') statusEl.classList.add('success');
+      }
+
+      function humanFileSize(size) {
+        if (!size) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        const exponent = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+        const value = size / (1024 ** exponent);
+        return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+      }
+
+      function bytesToBase64(bytes) {
+        let binary = '';
+        bytes.forEach((byte) => {
+          binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+      }
+
+      function openFilePicker() {
+        archiveInput.click();
+      }
+
+      function selectFile(file) {
+        if (!file || !file.name.toLowerCase().endsWith('.zip')) {
+          setStatus('Please choose a ZIP archive containing your web project.', 'error');
+          return;
+        }
+
+        selectedFile = file;
+        fileMeta.textContent = `${file.name} · ${humanFileSize(file.size)}`;
+        setStatus('ZIP selected. Ready to trigger the workflow.', 'success');
+      }
+
+      dropzone.addEventListener('click', openFilePicker);
+      dropzone.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openFilePicker();
+        }
+      });
+
+      dropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+
+      dropzone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (event.dataTransfer?.files?.length) {
+          selectFile(event.dataTransfer.files[0]);
+        }
+      });
+
+      archiveInput.addEventListener('change', (event) => {
+        if (event.target.files && event.target.files.length) {
+          selectFile(event.target.files[0]);
+        }
+      });
+
+      async function ghRequest(url, token, options = {}) {
+        const headers = {
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          ...(options.headers || {}),
+          Authorization: `token ${token}`
+        };
+
+        const response = await fetch(url, {
+          ...options,
+          headers
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`GitHub API error (${response.status}): ${text || response.statusText}`);
+        }
+
+        return response;
+      }
+
+      async function pollWorkflowRun(owner, repo, token) {
+        const since = Date.now();
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+          const response = await ghRequest(
+            `https://api.github.com/repos/${owner}/${repo}/actions/workflows/build-apk.yml/runs?per_page=5`,
+            token
+          );
+          const data = await response.json();
+          const newest = data.workflow_runs?.find((run) => {
+            if (!run.created_at) return false;
+            const created = new Date(run.created_at).getTime();
+            return created >= since - 30000;
+          }) || data.workflow_runs?.[0];
+
+          if (newest && newest.status === 'completed') {
+            return newest;
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+        }
+
+        return null;
+      }
+
+      async function findArtifact(owner, repo, runId, token) {
+        const response = await ghRequest(
+          `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`,
+          token
+        );
+        const data = await response.json();
+        const artifact = data.artifacts?.find((item) => item.name.toLowerCase().includes('apk')) || data.artifacts?.[0];
+        if (!artifact) {
+          return null;
+        }
+
+        return {
+          name: artifact.name,
+          downloadUrl: `https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifact.id}/zip`
+        };
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const token = tokenInput.value.trim();
+        const owner = ownerInput.value.trim();
+        const repo = repoInput.value.trim();
+        const branch = branchInput.value.trim() || 'main';
+
+        if (!token || !owner || !repo || !selectedFile) {
+          setStatus('Please provide a PAT, repository details, and a ZIP archive.', 'error');
+          return;
+        }
+
+        form.querySelector('button').disabled = true;
+        setStatus('Dispatching the build workflow...');
+
+        try {
+          const archiveData = new Uint8Array(await selectedFile.arrayBuffer());
+          const encodedZip = bytesToBase64(archiveData);
+
+          await ghRequest(
+            `https://api.github.com/repos/${owner}/${repo}/dispatches`,
+            token,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                event_type: 'build-apk',
+                client_payload: {
+                  zip_name: selectedFile.name,
+                  zip_b64: encodedZip,
+                  branch,
+                  source: 'AppStich GitHub Pages UI'
+                }
+              })
+            }
+          );
+
+          setStatus('Dispatch accepted. Waiting for the GitHub Actions run to finish...');
+
+          const run = await pollWorkflowRun(owner, repo, token);
+          if (!run) {
+            setStatus('The workflow was triggered but the run could not be confirmed before the timeout.', 'error');
+            return;
+          }
+
+          const artifact = await findArtifact(owner, repo, run.id, token);
+
+          runDetails.classList.remove('hidden');
+          runDetails.innerHTML = `
+            <h3>Build finished</h3>
+            <p><strong>Status:</strong> ${run.conclusion || run.status}</p>
+            <p><strong>Run:</strong> <a href="${run.html_url}" target="_blank" rel="noreferrer">Open workflow run</a></p>
+            ${artifact ? `<p><strong>Artifact:</strong> <a href="${artifact.downloadUrl}" target="_blank" rel="noreferrer">Download ${artifact.name}</a></p>` : '<p>No APK artifact was found for this run yet.</p>'}
+          `;
+
+          setStatus('APK build finished successfully. Download the artifact from the panel.', 'success');
+        } catch (error) {
+          console.error(error);
+          setStatus(error.message || 'The workflow could not be started. Check your token and repo permissions.', 'error');
+        } finally {
+          form.querySelector('button').disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

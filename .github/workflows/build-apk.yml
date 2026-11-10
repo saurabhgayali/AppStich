@@ -1,0 +1,128 @@
+name: Build APK
+
+on:
+  repository_dispatch:
+    types: [build-apk]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK command line tools
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+        run: |
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          cd "$ANDROID_HOME"
+          curl -fsSL "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o cmdline-tools.zip
+          unzip -qo cmdline-tools.zip
+          rm -f cmdline-tools.zip
+          mv cmdline-tools "$ANDROID_HOME/cmdline-tools/latest" || true
+          mkdir -p "$ANDROID_HOME/cmdline-tools/latest"
+          if [ -d "$ANDROID_HOME/cmdline-tools/cmdline-tools" ]; then
+            cp -a "$ANDROID_HOME/cmdline-tools/cmdline-tools/." "$ANDROID_HOME/cmdline-tools/latest/"
+          fi
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Prepare Android template
+        env:
+          INPUT_ZIP_B64: ${{ github.event.client_payload.zip_b64 }}
+          INPUT_ZIP_NAME: ${{ github.event.client_payload.zip_name }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import os
+          import shutil
+          import tempfile
+          import zipfile
+          from pathlib import Path
+
+          root = Path("${{ github.workspace }}")
+          zip_b64 = os.environ.get("INPUT_ZIP_B64", "")
+          zip_name = os.environ.get("INPUT_ZIP_NAME", "app.zip")
+          if not zip_b64:
+              raise SystemExit("No zip payload provided in repository_dispatch client payload.")
+
+          payload_dir = root / "payload"
+          payload_dir.mkdir(exist_ok=True)
+          zip_path = payload_dir / zip_name
+          with zip_path.open("wb") as fh:
+              fh.write(base64.b64decode(zip_b64))
+
+          template_dir = root / "template"
+          assets_dir = template_dir / "app" / "src" / "main" / "assets" / "www"
+          assets_dir.mkdir(parents=True, exist_ok=True)
+          for existing in assets_dir.iterdir():
+              if existing.name == '.gitkeep':
+                  continue
+              if existing.is_dir():
+                  shutil.rmtree(existing)
+              else:
+                  existing.unlink()
+
+          with zipfile.ZipFile(zip_path) as archive:
+              members = archive.namelist()
+              if not any(name.lower().endswith('index.html') for name in members):
+                  raise SystemExit("The uploaded project zip must contain an index.html file.")
+
+              extracted_root = payload_dir / "extracted"
+              if extracted_root.exists():
+                  shutil.rmtree(extracted_root)
+              extracted_root.mkdir()
+              archive.extractall(extracted_root)
+
+              project_root = extracted_root
+              if not (project_root / 'index.html').exists():
+                  for child in project_root.iterdir():
+                      if child.is_dir() and (child / 'index.html').exists():
+                          project_root = child
+                          break
+                  else:
+                      raise SystemExit("Could not find the app root containing index.html.")
+
+              for item in project_root.iterdir():
+                  target = assets_dir / item.name
+                  if item.is_dir():
+                      shutil.copytree(item, target, dirs_exist_ok=True)
+                  else:
+                      shutil.copy2(item, target)
+          PY
+
+      - name: Validate Android project files
+        run: |
+          ls -R template
+          test -f template/app/src/main/AndroidManifest.xml
+          test -f template/app/src/main/java/com/example/appstich/MainActivity.java
+          test -f template/app/src/main/assets/www/index.html || true
+
+      - name: Build APK
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+        run: |
+          cd template
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstich-debug-apk
+          path: template/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
