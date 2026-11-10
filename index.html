@@ -364,14 +364,16 @@
       });
 
       async function ghRequest(url, token, options = {}) {
+        const headers = {
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          ...(options.headers || {}),
+          Authorization: `token ${token}`
+        };
+
         const response = await fetch(url, {
           ...options,
-          headers: {
-            Authorization: `******
-            Accept: 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            ...(options.headers || {})
-          }
+          headers
         });
 
         if (!response.ok) {
@@ -390,16 +392,14 @@
             token
           );
           const data = await response.json();
-          const run = data.workflow_runs?.[0];
+          const newest = data.workflow_runs?.find((run) => {
+            if (!run.created_at) return false;
+            const created = new Date(run.created_at).getTime();
+            return created >= since - 30000;
+          }) || data.workflow_runs?.[0];
 
-          if (run && run.created_at && new Date(run.created_at).getTime() >= since - 5000) {
-            if (run.status === 'completed') {
-              return run;
-            }
-          }
-
-          if (run && run.status === 'completed') {
-            return run;
+          if (newest && newest.status === 'completed') {
+            return newest;
           }
 
           await new Promise((resolve) => setTimeout(resolve, 10000));
